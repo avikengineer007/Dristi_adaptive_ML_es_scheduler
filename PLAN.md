@@ -69,11 +69,12 @@
   - [x] Interactive "scenario shock" mid-mission emitter alteration
   - [x] Tests and `docs/phase_7.md`
 
-- [ ] **Phase 8: Differentiators (Post-Core)**
-  - [ ] 8A: Adversarial self-play evasion emitter (`drishti/adversary/`)
-  - [ ] 8B: Out-of-distribution (OOD) novelty detector (`drishti/novelty/`)
-  - [ ] 8C: Hierarchical coarse-to-fine scanning
-  - [ ] 8D: SDR hardware streaming adapter (optional)
+- [x] **Phase 8: Differentiators (Post-Core)**
+  - [x] 8A: Adversarial self-play evasion emitter (`drishti/adversary/`)
+  - [x] 8B: Out-of-distribution (OOD) novelty detector (`drishti/novelty/`)
+  - [x] 8C: Hierarchical coarse-to-fine scanning (`drishti/schedulers/hierarchical.py`)
+  - [x] Tests and `docs/phase_8.md`
+
 
 - [ ] **Phase 9: Final Packaging & Submission**
   - [ ] Comprehensive `README.md` with Mermaid architecture and headline table

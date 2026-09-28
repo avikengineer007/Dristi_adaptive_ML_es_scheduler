@@ -3,6 +3,7 @@
 from drishti.schedulers.bandit import SlidingWindowUCB, DiscountedThompson
 from drishti.schedulers.periodic_aware import PeriodicAwareScheduler
 from drishti.schedulers.ppo import PPOScheduler, PeriodicFeatureWrapper
+from drishti.schedulers.hierarchical import HierarchicalScanScheduler
 
 __all__ = [
     "SlidingWindowUCB",
@@ -10,4 +11,6 @@ __all__ = [
     "PeriodicAwareScheduler",
     "PPOScheduler",
     "PeriodicFeatureWrapper",
+    "HierarchicalScanScheduler",
 ]
+
