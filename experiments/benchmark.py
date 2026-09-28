@@ -15,6 +15,7 @@ from drishti.metrics.evaluator import MultiSeedEvaluator, StatisticalSummary
 
 from drishti.schedulers.bandit import SlidingWindowUCB, DiscountedThompson
 from drishti.schedulers.periodic_aware import PeriodicAwareScheduler
+from drishti.schedulers.ppo import PPOScheduler
 
 
 def build_baseline_schedulers(num_bands: int, config_data: Dict[str, Any]) -> List[Scheduler]:
@@ -30,7 +31,7 @@ def build_schedulers(
     include_bandits: bool = True,
 ) -> List[Scheduler]:
     """
-    Builds schedulers including baselines, adaptive bandits, and periodic-aware models.
+    Builds schedulers including baselines, adaptive bandits, periodic-aware, and PPO models.
     """
     emitter_specs = config_data.get("emitters", [])
     priorities: Dict[int, float] = {}
@@ -85,6 +86,17 @@ def build_schedulers(
                 prior_weights=priorities,
             )
         )
+        # Load trained PPO model if available
+        ppo_model_path = "models/ppo_augmented.zip" if os.path.exists("models/ppo_augmented.zip") else "models/ppo_pure.zip"
+        if os.path.exists(ppo_model_path):
+            schedulers.append(
+                PPOScheduler(
+                    num_bands=num_bands,
+                    model_path=ppo_model_path,
+                    use_periodic_features="augmented" in ppo_model_path,
+                    name="PPO (Augmented RL)",
+                )
+            )
 
     return schedulers
 
@@ -194,7 +206,7 @@ def run_benchmark(
     ]
 
     sched_names = list(all_results.keys())
-    colors = ["#64748b", "#94a3b8", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"]
+    colors = ["#64748b", "#94a3b8", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899", "#06b6d4"]
 
     for idx, (m_key, subtitle, higher_better) in enumerate(plot_configs):
         ax = axes[idx]

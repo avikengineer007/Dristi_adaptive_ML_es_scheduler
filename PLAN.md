@@ -50,12 +50,12 @@
   - [x] Estimation error and calibration plots
   - [x] Tests and `docs/phase_4.md`
 
-- [ ] **Phase 5: Reinforcement Learning Scheduler**
-  - [ ] Train PPO agent on `SpectrumScanEnv` with temporal feature representation / frame stacking
-  - [ ] Curriculum learning protocol (easy -> medium -> hard -> nonstationary)
-  - [ ] Pure PPO vs Periodic-Feature Augmented PPO comparison
-  - [ ] Export best policy to ONNX with CPU latency benchmark
-  - [ ] Tests, training curves, and `docs/phase_5.md`
+- [x] **Phase 5: Reinforcement Learning Scheduler**
+  - [x] Train PPO agent on `SpectrumScanEnv` with temporal feature representation / frame stacking
+  - [x] Curriculum learning protocol (easy -> medium -> hard -> nonstationary)
+  - [x] Pure PPO vs Periodic-Feature Augmented PPO comparison
+  - [x] Export best policy to ONNX with CPU latency benchmark
+  - [x] Tests, training curves, and `docs/phase_5.md`
 
 - [ ] **Phase 6: Explainability and the Scheduler Service**
   - [ ] Unified decision logging in `drishti/explain/` with JSONL export
