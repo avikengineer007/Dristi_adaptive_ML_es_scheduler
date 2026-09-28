@@ -1,0 +1,60 @@
+# DRISHTI Scenario Config: Medium
+# Representative tactical mix of fixed, periodic bursts, agile hopper, and scanning radar
+scenario:
+  name: "medium"
+  num_bands: 16
+  max_steps: 500
+  dwell_time: 1
+  dwell_cost: 0.5
+  switch_cost: 0.2
+  false_alarm_penalty: 1.0
+  first_intercept_bonus: 5.0
+
+receiver:
+  noise_floor_dbm: -95.0
+  snr_threshold_db: 10.0
+  p_fa: 0.02
+  noise_std_db: 1.0
+
+emitters:
+  - id: "FIXED_SURV_CH1"
+    type: "fixed"
+    band: 1
+    threat_weight: 2.0
+    power_dbm: 20.0
+    active_ratio: 1.0
+
+  - id: "BURST_RADAR_CH4"
+    type: "periodic_burst"
+    band: 4
+    period: 15
+    on_time: 3
+    threat_weight: 5.0
+    power_dbm: 30.0
+    jitter: 0.0
+
+  - id: "BURST_RADAR_CH11"
+    type: "periodic_burst"
+    band: 11
+    period: 28
+    on_time: 4
+    threat_weight: 6.0
+    power_dbm: 32.0
+    jitter: 0.5
+
+  - id: "AGILE_HOPPER_CH6_9"
+    type: "frequency_agile"
+    hop_bands: [6, 7, 8, 9]
+    hop_dwell: 2
+    pattern: "cyclic"
+    active_ratio: 0.85
+    threat_weight: 8.0
+    power_dbm: 35.0
+
+  - id: "ROTATING_SEARCH_CH15"
+    type: "scanning"
+    bands: [15]
+    scan_period: 40
+    beamwidth_slots: 3
+    threat_weight: 10.0
+    power_dbm: 40.0

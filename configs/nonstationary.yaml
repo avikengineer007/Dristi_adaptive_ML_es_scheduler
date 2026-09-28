@@ -1,0 +1,43 @@
+# DRISHTI Scenario Config: Nonstationary
+# Emitters alter active bands, hopping permutations, and burst phases mid-episode
+scenario:
+  name: "nonstationary"
+  num_bands: 16
+  max_steps: 500
+  dwell_time: 1
+  dwell_cost: 0.5
+  switch_cost: 0.2
+  false_alarm_penalty: 1.0
+  first_intercept_bonus: 5.0
+  nonstationary_step: 250  # Mid-episode behavioral shift
+
+receiver:
+  noise_floor_dbm: -95.0
+  snr_threshold_db: 10.0
+  p_fa: 0.02
+  noise_std_db: 1.0
+
+emitters:
+  - id: "SHIFTING_BURST_CH2"
+    type: "periodic_burst"
+    band: 2
+    period: 14
+    on_time: 3
+    threat_weight: 6.0
+    power_dbm: 32.0
+
+  - id: "NONSTATIONARY_HOPPER"
+    type: "frequency_agile"
+    hop_bands: [4, 6, 8, 10]
+    hop_dwell: 2
+    pattern: "random"
+    threat_weight: 8.0
+    power_dbm: 35.0
+
+  - id: "ROTATING_SEARCH_CH13"
+    type: "scanning"
+    bands: [13]
+    scan_period: 45
+    beamwidth_slots: 3
+    threat_weight: 10.0
+    power_dbm: 40.0

@@ -14,16 +14,16 @@
   - [x] Create `PLAN.md` and `CLAUDE.md`
   - [x] Initial Phase 0 git commit and user review
 
-- [ ] **Phase 1: RF Environment Simulator**
-  - [ ] Implement `drishti/env/` Gymnasium environment (`SpectrumScanEnv`)
-  - [ ] Emitter hierarchy (`FixedEmitter`, `PeriodicBurstEmitter`, `FrequencyAgileEmitter`, `ScanningEmitter`, `PeriodicScanReceiverTarget`)
-  - [ ] Receiver sensor model (ROC curve, $P_d(SNR)$, $P_{fa}$, thermal noise floor)
-  - [ ] Strict POMDP observation space (normalized age of information, running hits/misses, last seen status)
-  - [ ] Ground truth logging array ($T \times B$) & continuous burst event tracking
-  - [ ] 4 YAML scenario configs (`configs/easy.yaml`, `configs/medium.yaml`, `configs/hard.yaml`, `configs/nonstationary.yaml`)
-  - [ ] `DataSource` adapter (`SyntheticSource` and extensible `CSVSource` stub)
-  - [ ] Script `experiments/render_episode.py` saving spectrum-time heatmap to `results/`
-  - [ ] Tests and `docs/phase_1.md`
+- [x] **Phase 1: RF Environment Simulator**
+  - [x] Implement `drishti/env/` Gymnasium environment (`SpectrumScanEnv`)
+  - [x] Emitter hierarchy (`FixedEmitter`, `PeriodicBurstEmitter`, `FrequencyAgileEmitter`, `ScanningEmitter`, `PeriodicScanReceiverTarget`)
+  - [x] Receiver sensor model (ROC curve, $P_d(SNR)$, $P_{fa}$, thermal noise floor)
+  - [x] Strict POMDP observation space (normalized age of information, running hits/misses, last seen status)
+  - [x] Ground truth logging array ($T \times B$) & continuous burst event tracking
+  - [x] 4 YAML scenario configs (`configs/easy.yaml`, `configs/medium.yaml`, `configs/hard.yaml`, `configs/nonstationary.yaml`)
+  - [x] `DataSource` adapter (`SyntheticSource` and extensible `CSVSource` stub)
+  - [x] Script `experiments/render_episode.py` saving spectrum-time heatmap to `results/`
+  - [x] Tests and `docs/phase_1.md`
 
 - [ ] **Phase 2: Baselines and Metrics Harness**
   - [ ] Abstract `Scheduler` interface (`reset`, `choose_action`, `update`, `explain`)

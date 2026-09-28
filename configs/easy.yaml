@@ -1,0 +1,41 @@
+# DRISHTI Scenario Config: Easy
+# Low agility, predominantly static and predictable pulse emitters
+scenario:
+  name: "easy"
+  num_bands: 16
+  max_steps: 500
+  dwell_time: 1
+  dwell_cost: 0.5
+  switch_cost: 0.2
+  false_alarm_penalty: 1.0
+  first_intercept_bonus: 5.0
+
+receiver:
+  noise_floor_dbm: -95.0
+  snr_threshold_db: 10.0
+  p_fa: 0.01
+  noise_std_db: 1.0
+
+emitters:
+  - id: "FIXED_SURVEILLANCE_CH2"
+    type: "fixed"
+    band: 2
+    threat_weight: 2.0
+    power_dbm: 25.0
+    active_ratio: 1.0
+
+  - id: "FIXED_DATALINK_CH6"
+    type: "fixed"
+    band: 6
+    threat_weight: 3.0
+    power_dbm: 22.0
+    active_ratio: 0.9
+
+  - id: "SLOW_PULSE_CH10"
+    type: "periodic_burst"
+    band: 10
+    period: 25
+    on_time: 5
+    threat_weight: 5.0
+    power_dbm: 30.0
+    jitter: 0.0

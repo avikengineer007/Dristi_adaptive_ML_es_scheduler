@@ -1,0 +1,67 @@
+# DRISHTI Scenario Config: Hard
+# Contested spectrum with agile countermeasures, rotating radar, and periodic-scan receiver target
+scenario:
+  name: "hard"
+  num_bands: 16
+  max_steps: 500
+  dwell_time: 1
+  dwell_cost: 0.5
+  switch_cost: 0.2
+  false_alarm_penalty: 1.0
+  first_intercept_bonus: 5.0
+
+receiver:
+  noise_floor_dbm: -95.0
+  snr_threshold_db: 10.0
+  p_fa: 0.02
+  noise_std_db: 1.0
+
+emitters:
+  - id: "FIXED_BEACON_CH0"
+    type: "fixed"
+    band: 0
+    threat_weight: 1.5
+    power_dbm: 18.0
+    active_ratio: 0.95
+
+  - id: "FAST_BURST_CH3"
+    type: "periodic_burst"
+    band: 3
+    period: 12
+    on_time: 2
+    threat_weight: 7.0
+    power_dbm: 35.0
+    jitter: 0.2
+
+  - id: "RAPID_HOPPER_ALPHA"
+    type: "frequency_agile"
+    hop_bands: [4, 5, 6, 7]
+    hop_dwell: 1
+    pattern: "random"
+    active_ratio: 0.90
+    threat_weight: 8.5
+    power_dbm: 36.0
+
+  - id: "MARKOV_HOPPER_BETA"
+    type: "frequency_agile"
+    hop_bands: [8, 9, 10, 11]
+    hop_dwell: 2
+    pattern: "markov"
+    active_ratio: 0.85
+    threat_weight: 9.0
+    power_dbm: 38.0
+
+  - id: "AGILE_SEARCH_RADAR"
+    type: "scanning"
+    bands: [12, 13, 14]
+    scan_period: 36
+    beamwidth_slots: 2
+    threat_weight: 10.0
+    power_dbm: 42.0
+
+  - id: "TARGET_PERIODIC_RECEIVER"
+    type: "periodic_scan_receiver_target"
+    listening_bands: [1, 5, 9, 15]
+    dwell_per_band: 4
+    threat_weight: 9.5
+    power_dbm: 28.0
