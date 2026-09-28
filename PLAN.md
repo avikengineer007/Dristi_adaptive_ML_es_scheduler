@@ -33,14 +33,14 @@
   - [x] Generate baseline results table across all 4 scenarios
   - [x] Tests and `docs/phase_2.md`
 
-- [ ] **Phase 3: Non-Stationary Bandit Scheduler**
-  - [ ] Implement `SlidingWindowUCB` and `DiscountedThompson` in `drishti/schedulers/bandit/`
-  - [ ] Contextual age-of-information feature weighting
-  - [ ] Decision attribution in `explain()`
-  - [ ] Hyperparameter tuning script with train/validation seed split (`configs/bandit_tuned.yaml`)
-  - [ ] Ablation study (window size, discount factor $\gamma$)
-  - [ ] Full benchmark demonstrating bandit beats priority sweep on medium & nonstationary scenarios
-  - [ ] Tests and `docs/phase_3.md`
+- [x] **Phase 3: Non-Stationary Bandit Scheduler**
+  - [x] Implement `SlidingWindowUCB` and `DiscountedThompson` in `drishti/schedulers/bandit/`
+  - [x] Contextual age-of-information feature weighting
+  - [x] Decision attribution in `explain()`
+  - [x] Hyperparameter tuning script with train/validation seed split (`configs/bandit_tuned.yaml`)
+  - [x] Ablation study (window size, discount factor $\gamma$)
+  - [x] Full benchmark demonstrating bandit beats priority sweep on medium & nonstationary scenarios
+  - [x] Tests and `docs/phase_3.md`
 
 - [ ] **Phase 4: Periodic-Emitter Module and Predictive Models**
   - [ ] Periodicity estimation in `drishti/models/periodicity.py` (Circular Phase Coherence / Epoch Folding)

@@ -13,11 +13,24 @@ from drishti.baselines.priority_sweep import PriorityPreMissionSweep
 from drishti.metrics.evaluator import MultiSeedEvaluator, StatisticalSummary
 
 
+from drishti.schedulers.bandit import SlidingWindowUCB, DiscountedThompson
+
+
 def build_baseline_schedulers(num_bands: int, config_data: Dict[str, Any]) -> List[Scheduler]:
     """
     Builds baseline schedulers with appropriate pre-mission priority intelligence.
     """
-    # Extract emitter threat weights from config for the pre-mission priority baseline
+    return build_schedulers(num_bands=num_bands, config_data=config_data, include_bandits=False)
+
+
+def build_schedulers(
+    num_bands: int,
+    config_data: Dict[str, Any],
+    include_bandits: bool = True,
+) -> List[Scheduler]:
+    """
+    Builds schedulers including baselines and adaptive bandits with pre-mission threat intelligence.
+    """
     emitter_specs = config_data.get("emitters", [])
     priorities: Dict[int, float] = {}
     for spec in emitter_specs:
@@ -35,16 +48,40 @@ def build_baseline_schedulers(num_bands: int, config_data: Dict[str, Any]) -> Li
             for b in spec["listening_bands"]:
                 priorities[int(b)] = max(priorities.get(int(b), 0.0), threat)
 
-    return [
+    schedulers: List[Scheduler] = [
         SequentialSweep(num_bands=num_bands),
         RandomScan(num_bands=num_bands),
         PriorityPreMissionSweep(num_bands=num_bands, band_priorities=priorities),
     ]
 
+    if include_bandits:
+        schedulers.append(
+            SlidingWindowUCB(
+                num_bands=num_bands,
+                window_size=120,
+                exploration_coef=0.5,
+                aoi_weight=0.5,
+                switch_penalty_weight=0.2,
+                prior_weights=priorities,
+            )
+        )
+        schedulers.append(
+            DiscountedThompson(
+                num_bands=num_bands,
+                gamma=0.995,
+                aoi_weight=2.0,
+                switch_penalty_weight=0.2,
+                prior_weights=priorities,
+            )
+        )
+
+    return schedulers
+
 
 def run_benchmark(
     config_name: str = "medium",
     num_seeds: int = 30,
+    include_bandits: bool = True,
     output_dir: str = "results",
 ) -> pd.DataFrame:
     """
@@ -67,7 +104,7 @@ def run_benchmark(
     def make_env():
         return create_env_from_config(config_data)
 
-    schedulers = build_baseline_schedulers(num_bands, config_data)
+    schedulers = build_schedulers(num_bands, config_data, include_bandits=include_bandits)
     evaluator = MultiSeedEvaluator(env_factory=make_env, seeds=seeds)
 
     all_results: Dict[str, Dict[str, StatisticalSummary]] = {}
@@ -146,7 +183,7 @@ def run_benchmark(
     ]
 
     sched_names = list(all_results.keys())
-    colors = ["#3b82f6", "#f59e0b", "#10b981"]
+    colors = ["#64748b", "#94a3b8", "#3b82f6", "#10b981", "#8b5cf6"]
 
     for idx, (m_key, subtitle, higher_better) in enumerate(plot_configs):
         ax = axes[idx]
@@ -185,14 +222,16 @@ def run_benchmark(
             )
 
     plt.suptitle(
-        f"DRISHTI Baseline Benchmark: {config_name.upper()} Scenario (N={num_seeds} Seeds, 95% CI)",
+        f"DRISHTI Scan Strategy Benchmark: {config_name.upper()} Scenario (N={num_seeds} Seeds, 95% CI)",
         color="#f8fafc",
         fontsize=13,
         fontweight="bold",
     )
     plt.tight_layout()
-    plot_path = os.path.join(output_dir, f"baseline_comparison_{config_name}.png")
+    plot_path = os.path.join(output_dir, f"benchmark_{config_name}.png")
     plt.savefig(plot_path, dpi=200, facecolor=fig.get_facecolor(), edgecolor="none")
+    # Also save as baseline_comparison_<config>.png for compatibility
+    plt.savefig(os.path.join(output_dir, f"baseline_comparison_{config_name}.png"), dpi=200, facecolor=fig.get_facecolor(), edgecolor="none")
     plt.close(fig)
     print(f"Comparison plot saved to: {plot_path}\n")
 
@@ -200,13 +239,19 @@ def run_benchmark(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run DRISHTI multi-seed baseline benchmark")
+    parser = argparse.ArgumentParser(description="Run DRISHTI multi-seed scan scheduler benchmark")
     parser.add_argument("--config", type=str, default="medium", help="Scenario config (easy, medium, hard, nonstationary)")
     parser.add_argument("--seeds", type=int, default=30, help="Number of evaluation seeds (default: 30)")
+    parser.add_argument("--no-bandits", action="store_true", help="Exclude bandit schedulers")
     parser.add_argument("--output_dir", type=str, default="results", help="Output directory")
     args = parser.parse_args()
 
-    run_benchmark(config_name=args.config, num_seeds=args.seeds, output_dir=args.output_dir)
+    run_benchmark(
+        config_name=args.config,
+        num_seeds=args.seeds,
+        include_bandits=not args.no_bandits,
+        output_dir=args.output_dir,
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,11 @@
+sliding_window_ucb:
+  window_size: 120
+  exploration_coef: 0.5
+  aoi_weight: 0.5
+  switch_penalty_weight: 0.2
+discounted_thompson:
+  gamma: 0.995
+  aoi_weight: 2.0
+  alpha_0: 1.0
+  beta_0: 1.0
+  switch_penalty_weight: 0.2
