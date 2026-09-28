@@ -75,9 +75,32 @@ class PPOScheduler(BaseScheduler):
         print(f"PPO Agent trained and saved to: {save_path}")
 
     def load(self, model_path: str) -> None:
-        """Loads pre-trained PPO model weights."""
-        self.model = PPO.load(model_path, device=self.device)
-        self.model_path = model_path
+        """Loads pre-trained PPO model weights, verifying space dimensions match current num_bands."""
+        loaded_model = PPO.load(model_path, device=self.device)
+        expected_obs_dim = 3 * self.num_bands
+        expected_action_dim = self.num_bands
+
+        obs_match = (
+            hasattr(loaded_model.observation_space, "shape")
+            and loaded_model.observation_space.shape[0] == expected_obs_dim
+        )
+        action_match = (
+            hasattr(loaded_model.action_space, "n")
+            and loaded_model.action_space.n == expected_action_dim
+        )
+
+        if not (obs_match and action_match):
+            print(
+                f"[PPO] Space mismatch in '{model_path}': "
+                f"Obs={getattr(loaded_model.observation_space, 'shape', None)}, "
+                f"Actions={getattr(loaded_model.action_space, 'n', None)} "
+                f"vs required Obs=({expected_obs_dim},), Actions={expected_action_dim}. "
+                f"Automatically training compatible PPO agent for {self.num_bands} bands..."
+            )
+            self.train_agent(total_timesteps=20000, save_path=model_path)
+        else:
+            self.model = loaded_model
+            self.model_path = model_path
 
     def reset(self, seed: Optional[int] = None) -> None:
         pass

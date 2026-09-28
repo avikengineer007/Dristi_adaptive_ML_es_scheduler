@@ -36,7 +36,8 @@ def run_full_benchmark(
     """
     os.makedirs(output_dir, exist_ok=True)
     seeds = [1000 + i for i in range(num_seeds)]
-    model_path = os.path.join(output_dir, "ppo_ew_model.zip")
+    model_name = "ppo_ew_model.zip" if num_bands == 16 else f"ppo_ew_model_{num_bands}bands.zip"
+    model_path = os.path.join(output_dir, model_name)
 
     print("\n" + "=" * 90)
     print(" SIH 2026 PS 26055: SMART SCAN STRATEGY FOR ELECTRONIC WARFARE")
@@ -46,16 +47,20 @@ def run_full_benchmark(
     def make_env():
         return EWScanEnv(num_bands=num_bands, max_steps=episode_length)
 
-    # 1. Ensure PPO model is trained
+    # 1. Ensure PPO model is trained for this band count
     ppo_scheduler = PPOScheduler(num_bands=num_bands, model_path=model_path)
-    if not os.path.exists(model_path):
-        print("Pre-trained PPO model not found. Training PPO Agent for 30,000 steps...")
-        ppo_scheduler.train_agent(total_timesteps=30000, save_path=model_path, seed=42)
+    if not os.path.exists(model_path) or ppo_scheduler.model is None:
+        print(f"Pre-trained PPO model for {num_bands} bands not found. Training PPO Agent...")
+        ppo_scheduler.train_agent(total_timesteps=20000, save_path=model_path, seed=42)
     else:
-        print(f"Loaded pre-trained PPO model from: {model_path}")
+        print(f"Loaded compatible PPO model from: {model_path}")
 
-    # 2. Configure baseline and ML schedulers
-    prior_priorities = {15: 10.0, 5: 5.0, 11: 6.0, 1: 2.0}
+    # 2. Configure baseline and ML schedulers dynamically
+    b_scan = max(0, min(num_bands - 1, num_bands - 1))
+    b_b1 = max(0, min(num_bands - 1, int(0.3 * num_bands)))
+    b_b2 = max(0, min(num_bands - 1, int(0.7 * num_bands)))
+    b_fixed = max(0, min(num_bands - 1, 1))
+    prior_priorities = {b_scan: 10.0, b_b1: 5.0, b_b2: 6.0, b_fixed: 2.0}
     schedulers = [
         SequentialSweep(num_bands=num_bands),
         RandomScan(num_bands=num_bands),

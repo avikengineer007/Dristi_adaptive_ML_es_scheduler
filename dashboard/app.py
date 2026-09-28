@@ -120,8 +120,14 @@ if not selected_schedulers:
 
 def build_scheduler_instances(names: List[str], n_bands: int) -> List[Any]:
     schedulers = []
-    prior_priorities = {15: 10.0, 5: 5.0, 11: 6.0, 1: 2.0}
-    model_path = os.path.join("artifacts", "ppo_ew_model.zip")
+    b_scan = max(0, min(n_bands - 1, n_bands - 1))
+    b_b1 = max(0, min(n_bands - 1, int(0.3 * n_bands)))
+    b_b2 = max(0, min(n_bands - 1, int(0.7 * n_bands)))
+    b_fixed = max(0, min(n_bands - 1, 1))
+    prior_priorities = {b_scan: 10.0, b_b1: 5.0, b_b2: 6.0, b_fixed: 2.0}
+
+    model_name = "ppo_ew_model.zip" if n_bands == 16 else f"ppo_ew_model_{n_bands}bands.zip"
+    model_path = os.path.join("artifacts", model_name)
 
     for name in names:
         if name == "Sequential Sweep":
@@ -138,6 +144,8 @@ def build_scheduler_instances(names: List[str], n_bands: int) -> List[Any]:
             schedulers.append(PeriodicPredictiveScheduler(num_bands=n_bands, window_size=40))
         elif name == "PPO Deep RL":
             ppo = PPOScheduler(num_bands=n_bands, model_path=model_path if os.path.exists(model_path) else None)
+            if ppo.model is None:
+                ppo.train_agent(total_timesteps=15000, save_path=model_path)
             schedulers.append(ppo)
     return schedulers
 
