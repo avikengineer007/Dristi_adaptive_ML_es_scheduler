@@ -150,6 +150,7 @@ class MultiSeedEvaluator:
             while not done:
                 action = scheduler.act(obs, info)
                 obs, reward, terminated, truncated, info = env.step(action)
+                scheduler.update(action, reward, obs, info)
                 total_reward += reward
                 done = terminated or truncated
 

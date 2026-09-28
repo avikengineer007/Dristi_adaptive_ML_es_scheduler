@@ -29,6 +29,19 @@ class BaseScheduler(ABC):
         """
         pass
 
+    def update(
+        self,
+        action: int,
+        reward: float,
+        obs: np.ndarray,
+        info: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Update online model state using feedback from the environment step.
+        Default implementation is a no-op for fixed/static schedulers.
+        """
+        pass
+
     def explain(self, obs: np.ndarray, action: int) -> str:
         """Provide a human-readable explanation for why this band was selected."""
         return f"{self.name} selected band {action} based on default policy logic."
