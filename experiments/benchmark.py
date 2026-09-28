@@ -14,6 +14,7 @@ from drishti.metrics.evaluator import MultiSeedEvaluator, StatisticalSummary
 
 
 from drishti.schedulers.bandit import SlidingWindowUCB, DiscountedThompson
+from drishti.schedulers.periodic_aware import PeriodicAwareScheduler
 
 
 def build_baseline_schedulers(num_bands: int, config_data: Dict[str, Any]) -> List[Scheduler]:
@@ -29,7 +30,7 @@ def build_schedulers(
     include_bandits: bool = True,
 ) -> List[Scheduler]:
     """
-    Builds schedulers including baselines and adaptive bandits with pre-mission threat intelligence.
+    Builds schedulers including baselines, adaptive bandits, and periodic-aware models.
     """
     emitter_specs = config_data.get("emitters", [])
     priorities: Dict[int, float] = {}
@@ -70,6 +71,16 @@ def build_schedulers(
                 num_bands=num_bands,
                 gamma=0.995,
                 aoi_weight=2.0,
+                switch_penalty_weight=0.2,
+                prior_weights=priorities,
+            )
+        )
+        schedulers.append(
+            PeriodicAwareScheduler(
+                num_bands=num_bands,
+                window_size=120,
+                exploration_coef=0.5,
+                aoi_weight=0.5,
                 switch_penalty_weight=0.2,
                 prior_weights=priorities,
             )
@@ -183,7 +194,7 @@ def run_benchmark(
     ]
 
     sched_names = list(all_results.keys())
-    colors = ["#64748b", "#94a3b8", "#3b82f6", "#10b981", "#8b5cf6"]
+    colors = ["#64748b", "#94a3b8", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"]
 
     for idx, (m_key, subtitle, higher_better) in enumerate(plot_configs):
         ax = axes[idx]

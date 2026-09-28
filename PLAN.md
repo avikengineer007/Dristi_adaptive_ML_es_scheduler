@@ -42,13 +42,13 @@
   - [x] Full benchmark demonstrating bandit beats priority sweep on medium & nonstationary scenarios
   - [x] Tests and `docs/phase_3.md`
 
-- [ ] **Phase 4: Periodic-Emitter Module and Predictive Models**
-  - [ ] Periodicity estimation in `drishti/models/periodicity.py` (Circular Phase Coherence / Epoch Folding)
-  - [ ] `PeriodicAwareScheduler` with lookahead dwell synchronization
-  - [ ] Dedicated rendezvous strategy against `PeriodicScanReceiverTarget`
-  - [ ] Learned receiver system model in `drishti/models/receiver_model.py` predicting hit probability and intercept time
-  - [ ] Estimation error and calibration plots
-  - [ ] Tests and `docs/phase_4.md`
+- [x] **Phase 4: Periodic-Emitter Module and Predictive Models**
+  - [x] Periodicity estimation in `drishti/models/periodicity.py` (Circular Phase Coherence / Epoch Folding)
+  - [x] `PeriodicAwareScheduler` with lookahead dwell synchronization
+  - [x] Dedicated rendezvous strategy against `PeriodicScanReceiverTarget`
+  - [x] Learned receiver system model in `drishti/models/receiver_model.py` predicting hit probability and intercept time
+  - [x] Estimation error and calibration plots
+  - [x] Tests and `docs/phase_4.md`
 
 - [ ] **Phase 5: Reinforcement Learning Scheduler**
   - [ ] Train PPO agent on `SpectrumScanEnv` with temporal feature representation / frame stacking
