@@ -57,11 +57,11 @@
   - [x] Export best policy to ONNX with CPU latency benchmark
   - [x] Tests, training curves, and `docs/phase_5.md`
 
-- [ ] **Phase 6: Explainability and the Scheduler Service**
-  - [ ] Unified decision logging in `drishti/explain/` with JSONL export
-  - [ ] Standalone `ScanScheduler` service class
-  - [ ] Formal Model Card in `docs/model_card.md`
-  - [ ] Tests and `docs/phase_6.md`
+- [x] **Phase 6: Explainability and the Scheduler Service**
+  - [x] Unified decision logging in `drishti/explain/` with JSONL export
+  - [x] Standalone `ScanScheduler` service class
+  - [x] Formal Model Card in `docs/model_card.md`
+  - [x] Tests and `docs/phase_6.md`
 
 - [ ] **Phase 7: Tactical Dashboard**
   - [ ] Streamlit mission control in `dashboard/app.py`
