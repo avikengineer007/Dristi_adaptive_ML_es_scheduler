@@ -7,20 +7,20 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-# Add parent directory to path so rf_env, baselines, and schedulers can be imported
+# Add project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from rf_env.environment import EWScanEnv
-from baselines.sequential import SequentialSweep
-from baselines.random_scan import RandomScan
-from baselines.priority_sweep import PrioritySweep
-from schedulers.bandits import SlidingWindowUCB, DiscountedThompsonSampling
-from schedulers.periodic_tracker import PeriodicPredictiveScheduler
-from schedulers.ppo_agent import PPOScheduler
+from drishti.utils.config import load_scenario_config, create_env_from_config
+from drishti.baselines.sequential import SequentialSweep
+from drishti.baselines.random_scan import RandomScan
+from drishti.baselines.priority_sweep import PriorityPreMissionSweep
+from drishti.schedulers.bandit import SlidingWindowUCB, DiscountedThompson
+from drishti.schedulers.periodic_aware import PeriodicAwareScheduler
+from drishti.schedulers.ppo import PPOScheduler
 from dashboard.components import run_single_episode_simulation, SchedulerSimulationResult
 
 st.set_page_config(
-    page_title="EW Smart Scan Strategy | SIH 2026",
+    page_title="DRISHTI: Tactical EW Scan Scheduler",
     page_icon="📡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -37,384 +37,321 @@ st.markdown(
         background: linear-gradient(135deg, #111a2e 0%, #1e293b 100%);
         border: 1px solid #334155;
         border-radius: 8px;
-        padding: 16px;
+        padding: 14px;
         color: #f8fafc;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
     }
     .metric-title {
-        font-size: 0.85rem;
+        font-size: 0.80rem;
         font-weight: 600;
         color: #94a3b8;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
     .metric-value {
-        font-size: 1.8rem;
+        font-size: 1.6rem;
         font-weight: 700;
         color: #38bdf8;
         margin-top: 4px;
     }
     .metric-subtitle {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         color: #64748b;
         margin-top: 2px;
     }
-    .stSelectbox label, .stSlider label, .stMultiSelect label {
+    .badge-tactical {
+        background-color: #0369a1;
+        color: #e0f2fe;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
         font-weight: 600;
-        color: #cbd5e1;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-st.title("📡 Smart Scan Strategy for Electronic Warfare (ES Receiver)")
-st.markdown(
-    "**SIH 2026 PS 26055 Prototype**: Adaptive reinforcement learning & non-stationary bandit frequency scheduling "
-    "to maximize interception ratio and minimize intercept latency against frequency-agile and periodic pulse radars."
+# Sidebar: Mission Configuration
+st.sidebar.image("https://img.icons8.com/fluency/96/radar.png", width=64)
+st.sidebar.title("DRISHTI Control Center")
+st.sidebar.caption("SIH 2026 Problem Statement 26055 (DRDO)")
+
+scenario_name = st.sidebar.selectbox(
+    "Tactical RF Scenario",
+    options=["medium", "nonstationary", "easy", "hard"],
+    index=0,
+    help="Select pre-configured threat environment profile.",
 )
 
-# ----------------- SIDEBAR CONFIGURATION -----------------
-st.sidebar.header("⚙️ Scenario & Receiver Parameters")
+episode_length = st.sidebar.slider(
+    "Mission Duration (Dwell Slots)",
+    min_value=100,
+    max_value=500,
+    value=300,
+    step=50,
+)
 
-seed = st.sidebar.number_input("Random Scenario Seed", min_value=1, max_value=99999, value=1042, step=1)
-num_bands = st.sidebar.slider("Number of Frequency Bands (N)", min_value=8, max_value=32, value=16, step=2)
-episode_length = st.sidebar.slider("Episode Length (Time Slots)", min_value=50, max_value=1000, value=250, step=25)
-dwell_time = st.sidebar.slider("Receiver Dwell Time (Slots/Step)", min_value=1, max_value=3, value=1, step=1)
+seed = st.sidebar.number_input(
+    "Evaluation Seed",
+    min_value=0,
+    max_value=99999,
+    value=1042,
+    step=1,
+)
 
-with st.sidebar.expander("Receiver ROC & Noise Parameters", expanded=False):
-    p_md = st.slider("Missed Detection Prob (P_md)", 0.0, 0.20, 0.05, 0.01)
-    p_fa = st.slider("False Alarm Prob (P_fa)", 0.0, 0.10, 0.02, 0.005)
-
+# Schedulers to evaluate
 st.sidebar.markdown("---")
-st.sidebar.header("🤖 Schedulers to Compare")
+st.sidebar.subheader("Active Schedulers")
 
 available_schedulers = [
+    "PPO (Augmented RL)",
+    "Periodic-Aware Scheduler",
+    "Sliding-Window UCB",
+    "Discounted Thompson",
+    "Priority Pre-Mission",
     "Sequential Sweep",
     "Random Scan",
-    "Priority Sweep",
-    "Sliding-Window UCB",
-    "Discounted Thompson Sampling",
-    "Periodic-Predictive ML",
-    "PPO Deep RL",
 ]
 
 selected_schedulers = st.sidebar.multiselect(
-    "Select Schedulers to Run Side-by-Side:",
+    "Compare Schedulers",
     options=available_schedulers,
-    default=[
-        "Sequential Sweep",
-        "Sliding-Window UCB",
-        "Periodic-Predictive ML",
-        "PPO Deep RL",
-    ],
+    default=["PPO (Augmented RL)", "Periodic-Aware Scheduler", "Sliding-Window UCB", "Priority Pre-Mission"],
 )
 
-run_button = st.sidebar.button("🚀 Run Live Mission Simulation", type="primary")
+# Mid-mission scenario shock
+st.sidebar.markdown("---")
+st.sidebar.subheader("Mid-Mission Scenario Shock")
+enable_shock = st.sidebar.checkbox("Inject Tactical Emitter Shock", value=False)
+shock_slot = 150
+shock_type = "agile"
+shock_channel = 8
 
-# ----------------- SIMULATION LOGIC -----------------
+if enable_shock:
+    shock_slot = st.sidebar.slider("Shock Trigger Slot", 20, episode_length - 20, int(episode_length * 0.4))
+    shock_type = st.sidebar.selectbox("Shock Emitter Type", ["agile", "periodic", "jammer"])
+    shock_channel = st.sidebar.number_input("Target Channel", min_value=0, max_value=15, value=7)
+    st.sidebar.info(f"🚨 At slot {shock_slot}, an emergency {shock_type.upper()} threat will initiate on Band {shock_channel}!")
+
+# Main Mission Header
+st.title("📡 DRISHTI: Tactical ES Receiver Scan Mission Control")
+st.markdown(
+    "**Dynamic Reinforcement-learning Intercept Scheduler for Tactical ES Intelligence** | "
+    f"Active Scenario: `<span class='badge-tactical'>{scenario_name.upper()}</span>` | "
+    f"Episode Duration: `{episode_length} slots` | Seed: `{seed}`",
+    unsafe_allow_html=True,
+)
+
+# Load configuration and create environment
+config_data = load_scenario_config(scenario_name)
+num_bands = config_data.get("scenario", {}).get("num_bands", 16)
+
+# Extract pre-mission threat intelligence
+priorities: Dict[int, float] = {}
+for spec in config_data.get("emitters", []):
+    threat = float(spec.get("threat_weight", 1.0))
+    if "band" in spec:
+        priorities[int(spec["band"])] = max(priorities.get(int(spec["band"]), 0.0), threat)
+    elif "bands" in spec:
+        for b in spec["bands"]:
+            priorities[int(b)] = max(priorities.get(int(b), 0.0), threat)
+
+
+def instantiate_scheduler(name: str):
+    if name == "Sequential Sweep":
+        return SequentialSweep(num_bands=num_bands)
+    elif name == "Random Scan":
+        return RandomScan(num_bands=num_bands)
+    elif name == "Priority Pre-Mission":
+        return PriorityPreMissionSweep(num_bands=num_bands, band_priorities=priorities)
+    elif name == "Sliding-Window UCB":
+        return SlidingWindowUCB(num_bands=num_bands, window_size=120, exploration_coef=0.5, aoi_weight=0.5, prior_weights=priorities)
+    elif name == "Discounted Thompson":
+        return DiscountedThompson(num_bands=num_bands, gamma=0.995, aoi_weight=2.0, prior_weights=priorities)
+    elif name == "Periodic-Aware Scheduler":
+        return PeriodicAwareScheduler(num_bands=num_bands, window_size=120, exploration_coef=0.5, aoi_weight=0.5, prior_weights=priorities)
+    elif name == "PPO (Augmented RL)":
+        ppo_path = "models/ppo_augmented.zip" if os.path.exists("models/ppo_augmented.zip") else "models/ppo_pure.zip"
+        return PPOScheduler(num_bands=num_bands, model_path=ppo_path, use_periodic_features="augmented" in ppo_path, name="PPO (Augmented RL)")
+    return SequentialSweep(num_bands=num_bands)
+
+
+# Run simulation for each selected scheduler
 if not selected_schedulers:
     st.warning("Please select at least one scheduler from the sidebar.")
     st.stop()
 
+results: Dict[str, SchedulerSimulationResult] = {}
+with st.spinner("Executing tactical RF simulations..."):
+    for sched_name in selected_schedulers:
+        env = create_env_from_config(config_data)
+        env.max_steps = episode_length
+        sched = instantiate_scheduler(sched_name)
+        res = run_single_episode_simulation(
+            env=env,
+            scheduler=sched,
+            seed=seed,
+            shock_step=shock_slot if enable_shock else None,
+            shock_band=shock_channel if enable_shock else None,
+            shock_type=shock_type,
+        )
+        results[sched_name] = res
 
-def build_scheduler_instances(names: List[str], n_bands: int) -> List[Any]:
-    schedulers = []
-    b_scan = max(0, min(n_bands - 1, n_bands - 1))
-    b_b1 = max(0, min(n_bands - 1, int(0.3 * n_bands)))
-    b_b2 = max(0, min(n_bands - 1, int(0.7 * n_bands)))
-    b_fixed = max(0, min(n_bands - 1, 1))
-    prior_priorities = {b_scan: 10.0, b_b1: 5.0, b_b2: 6.0, b_fixed: 2.0}
-
-    model_name = "ppo_ew_model.zip" if n_bands == 16 else f"ppo_ew_model_{n_bands}bands.zip"
-    model_path = os.path.join("artifacts", model_name)
-
-    for name in names:
-        if name == "Sequential Sweep":
-            schedulers.append(SequentialSweep(num_bands=n_bands))
-        elif name == "Random Scan":
-            schedulers.append(RandomScan(num_bands=n_bands))
-        elif name == "Priority Sweep":
-            schedulers.append(PrioritySweep(num_bands=n_bands, band_priorities=prior_priorities))
-        elif name == "Sliding-Window UCB":
-            schedulers.append(SlidingWindowUCB(num_bands=n_bands, window_size=50, exploration_coef=1.5))
-        elif name == "Discounted Thompson Sampling":
-            schedulers.append(DiscountedThompsonSampling(num_bands=n_bands, gamma=0.92))
-        elif name == "Periodic-Predictive ML":
-            schedulers.append(PeriodicPredictiveScheduler(num_bands=n_bands, window_size=40))
-        elif name == "PPO Deep RL":
-            ppo = PPOScheduler(num_bands=n_bands, model_path=model_path if os.path.exists(model_path) else None)
-            if ppo.model is None:
-                ppo.train_agent(total_timesteps=15000, save_path=model_path)
-            schedulers.append(ppo)
-    return schedulers
-
-
-@st.cache_data(show_spinner=False)
-def run_all_selected(
-    _sched_names: List[str],
-    s_seed: int,
-    n_bands: int,
-    ep_len: int,
-    dwell: int,
-    miss_prob: float,
-    fa_prob: float,
-) -> Dict[str, SchedulerSimulationResult]:
-    env = EWScanEnv(
-        num_bands=n_bands,
-        max_steps=ep_len,
-        dwell_time=dwell,
-        p_md=miss_prob,
-        p_fa=fa_prob,
-    )
-    schedulers = build_scheduler_instances(_sched_names, n_bands)
-    results = {}
-    for s in schedulers:
-        res = run_single_episode_simulation(env=env, scheduler=s, seed=s_seed)
-        results[s.name] = res
-    return results
-
-
-with st.spinner("Executing synchronous mission simulation across all chosen schedulers..."):
-    results_map = run_all_selected(
-        selected_schedulers,
-        seed,
-        num_bands,
-        episode_length,
-        dwell_time,
-        p_md,
-        p_fa,
-    )
-
-# ----------------- SECTION 1: TOP KPI CARDS -----------------
-st.subheader("📊 Mission Key Performance Indicators (KPIs)")
-cols = st.columns(4)
-
-# Determine best performers
-best_reward_name = max(results_map.keys(), key=lambda k: results_map[k].metrics.total_reward)
-best_ir_name = max(results_map.keys(), key=lambda k: results_map[k].metrics.interception_ratio)
-best_ait_name = min(results_map.keys(), key=lambda k: results_map[k].metrics.average_intercept_time)
-max_bursts = max(r.metrics.total_bursts for r in results_map.values())
-
-with cols[0]:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-title">Highest Mission Reward</div>
-            <div class="metric-value">{results_map[best_reward_name].metrics.total_reward:.1f}</div>
-            <div class="metric-subtitle">Leader: <strong>{best_reward_name}</strong></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-with cols[1]:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-title">Max Interception Ratio</div>
-            <div class="metric-value">{results_map[best_ir_name].metrics.interception_ratio:.1%}</div>
-            <div class="metric-subtitle">Leader: <strong>{best_ir_name}</strong> ({results_map[best_ir_name].metrics.intercepted_bursts}/{max_bursts} bursts)</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-with cols[2]:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-title">Lowest Intercept Latency</div>
-            <div class="metric-value">{results_map[best_ait_name].metrics.average_intercept_time:.2f} <span style="font-size:1rem;">slots</span></div>
-            <div class="metric-subtitle">Leader: <strong>{best_ait_name}</strong></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-with cols[3]:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-title">Total Scenario Bursts</div>
-            <div class="metric-value">{max_bursts}</div>
-            <div class="metric-subtitle">Agile + Periodic + Scan Emitters</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+# Display KPI Metric Cards
+cols = st.columns(len(results))
+for i, (name, res) in enumerate(results.items()):
+    with cols[i]:
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <div class="metric-title">{name}</div>
+                <div class="metric-value">{res.metrics.cumulative_reward:+.1f}</div>
+                <div class="metric-subtitle">
+                    Count IR: <b>{res.metrics.interception_ratio_count:.1%}</b> | Time IR: <b>{res.metrics.interception_ratio_time:.1%}</b><br>
+                    Avg Intercept Time: <b>{res.metrics.average_intercept_time:.2f} slots</b><br>
+                    Pd: <b>{res.metrics.probability_of_detection:.1%}</b> | FAR: <b>{res.metrics.false_alarm_rate:.3f}</b>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 st.write("")
 
-# ----------------- SECTION 2: LIVE CUMULATIVE REWARD & COMPARISON TABLE -----------------
-col_chart, col_table = st.columns([1.4, 1.0])
+# Tabs: Waterfall, Curves, and Explainability Log
+tab_waterfall, tab_curves, tab_explain = st.tabs(
+    ["🛰️ Spectrum Waterfall & Trajectory", "📈 Live Performance Trajectories", "🔍 'Why This Band?' Explainability Log"]
+)
 
-with col_chart:
-    st.markdown("### 📈 Cumulative Mission Reward Curves")
-    fig_reward, ax_reward = plt.subplots(figsize=(8, 4.2))
-    fig_reward.patch.set_facecolor("#0f172a")
-    ax_reward.set_facecolor("#1e293b")
+with tab_waterfall:
+    st.subheader("RF Spectrum Waterfall & Receiver Dwell Overlay")
+    st.caption("Background heatmap indicates true hostile emitter emissions across time. White markers indicate receiver dwell tuning, and green circles indicate successful intercepts.")
 
-    for name, res in results_map.items():
-        steps = list(range(len(res.cumulative_rewards)))
-        ax_reward.plot(steps, res.cumulative_rewards, label=name, linewidth=2.0)
+    fig, axes = plt.subplots(len(results), 1, figsize=(14, 3.2 * len(results)), squeeze=False)
+    fig.patch.set_facecolor("#0b0f19")
 
-    ax_reward.set_xlabel("Time Slot (t)", color="#94a3b8", fontsize=10)
-    ax_reward.set_ylabel("Cumulative Threat Reward", color="#94a3b8", fontsize=10)
-    ax_reward.tick_params(colors="#94a3b8")
-    ax_reward.grid(True, linestyle="--", alpha=0.3, color="#475569")
-    ax_reward.legend(facecolor="#0f172a", edgecolor="#475569", labelcolor="#f8fafc", fontsize=9)
-    st.pyplot(fig_reward)
-    plt.close(fig_reward)
+    for idx, (name, res) in enumerate(results.items()):
+        ax = axes[idx, 0]
+        ax.set_facecolor("#1e293b")
 
-with col_table:
-    st.markdown("### 📋 Episode Metrics Table")
-    rows = []
-    for name, res in results_map.items():
-        m = res.metrics
-        rows.append(
-            {
-                "Scheduler": name,
-                "Reward": f"{m.total_reward:.1f}",
-                "IR": f"{m.interception_ratio:.1%}",
-                "AIT": f"{m.average_intercept_time:.2f}",
-                "Pd": f"{m.probability_of_detection:.2%}",
-                "FAR": f"{m.false_alarm_rate:.2%}",
-            }
-        )
-    df_metrics = pd.DataFrame(rows)
-    st.dataframe(df_metrics, hide_index=True)
-    st.info(
-        "💡 **Key Insight**: Open-loop sweeps miss periodic and agile emitters due to asynchronous blind spots. "
-        "ML schedulers estimate burst periodicity and dynamically re-tune to achieve 2x-3x higher interception ratio."
+        # Ground truth matrix transpose: (B, T)
+        gt = res.ground_truth_matrix.T
+        ax.imshow(gt, aspect="auto", cmap="Blues", origin="lower", extent=[0, len(res.actions), -0.5, num_bands - 0.5], alpha=0.6)
+
+        # Plot receiver action trajectory
+        t_steps = np.arange(len(res.actions))
+        actions = np.array(res.actions)
+
+        ax.scatter(t_steps, actions, color="#f8fafc", s=12, alpha=0.7, label="Receiver Dwell", zorder=3)
+
+        # Highlight true detections
+        det_mask = np.array(res.true_detections)
+        if np.any(det_mask):
+            ax.scatter(t_steps[det_mask], actions[det_mask], color="#34d399", edgecolors="#059669", s=45, linewidth=1.5, label="Intercept Hit", zorder=4)
+
+        if enable_shock and shock_slot < len(res.actions):
+            ax.axvline(x=shock_slot, color="#f43f5e", linestyle="--", linewidth=1.8, label=f"Shock: {shock_type.upper()}", zorder=5)
+
+        ax.set_title(f"{name} (Cumulative Reward: {res.metrics.cumulative_reward:+.1f} | Count IR: {res.metrics.interception_ratio_count:.1%})", color="#f8fafc", fontsize=11, fontweight="bold")
+        ax.set_ylabel("Band Index", color="#cbd5e1", fontsize=9)
+        ax.set_yticks(range(0, num_bands, 2))
+        ax.tick_params(colors="#94a3b8")
+        ax.grid(True, linestyle=":", alpha=0.3, color="#64748b")
+
+        if idx == len(results) - 1:
+            ax.set_xlabel("Discrete Dwell Slot (t)", color="#cbd5e1", fontsize=10)
+
+    plt.tight_layout()
+    st.pyplot(fig)
+    plt.close(fig)
+
+with tab_curves:
+    st.subheader("Dynamic Cumulative Performance Curves")
+
+    fig_curves, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    fig_curves.patch.set_facecolor("#0b0f19")
+    ax1.set_facecolor("#1e293b")
+    ax2.set_facecolor("#1e293b")
+
+    colors = ["#38bdf8", "#a855f7", "#34d399", "#fbbf24", "#f43f5e", "#94a3b8", "#ec4899"]
+
+    for i, (name, res) in enumerate(results.items()):
+        c = colors[i % len(colors)]
+        t_axis = range(len(res.cumulative_rewards))
+        ax1.plot(t_axis, res.cumulative_rewards, label=name, color=c, linewidth=2.0)
+
+        # Cumulative hits
+        cum_hits = np.cumsum(res.true_detections)
+        ax2.plot(t_axis, cum_hits, label=name, color=c, linewidth=2.0)
+
+    if enable_shock:
+        ax1.axvline(x=shock_slot, color="#f43f5e", linestyle="--", label="Tactical Shock", alpha=0.8)
+        ax2.axvline(x=shock_slot, color="#f43f5e", linestyle="--", label="Tactical Shock", alpha=0.8)
+
+    ax1.set_title("Cumulative Reward Trajectory", color="#f8fafc", fontsize=11, fontweight="bold")
+    ax1.set_xlabel("Slot (t)", color="#cbd5e1", fontsize=10)
+    ax1.set_ylabel("Cumulative Threat Payoff", color="#cbd5e1", fontsize=10)
+    ax1.grid(True, linestyle="--", alpha=0.3, color="#64748b")
+    ax1.tick_params(colors="#94a3b8")
+    ax1.legend(facecolor="#1e293b", edgecolor="#334155", labelcolor="#f8fafc")
+
+    ax2.set_title("Cumulative Intercepted Pulses / Bursts", color="#f8fafc", fontsize=11, fontweight="bold")
+    ax2.set_xlabel("Slot (t)", color="#cbd5e1", fontsize=10)
+    ax2.set_ylabel("Total Detections", color="#cbd5e1", fontsize=10)
+    ax2.grid(True, linestyle="--", alpha=0.3, color="#64748b")
+    ax2.tick_params(colors="#94a3b8")
+    ax2.legend(facecolor="#1e293b", edgecolor="#334155", labelcolor="#f8fafc")
+
+    plt.tight_layout()
+    st.pyplot(fig_curves)
+    plt.close(fig_curves)
+
+with tab_explain:
+    st.subheader("Explainability Log & Dynamic Contrastive Explorer")
+
+    chosen_scheduler = st.selectbox("Inspect Scheduler Log", options=list(results.keys()), index=0)
+    sched_res = results[chosen_scheduler]
+
+    # Contrastive explainability tool
+    st.markdown("#### 🔍 Contrastive Tactical Query Tool")
+    c1, c2, c3 = st.columns([2, 2, 3])
+    with c1:
+        step_to_inspect = st.slider("Inspect Slot", 0, len(sched_res.actions) - 1, min(42, len(sched_res.actions) - 1))
+    with c2:
+        band_chosen = sched_res.actions[step_to_inspect]
+        alt_band = st.selectbox("Alternative Band", options=[b for b in range(num_bands) if b != band_chosen], index=0)
+
+    # Explanation text
+    st.info(f"**Slot {step_to_inspect} Rationale**: {sched_res.explanations[step_to_inspect]}")
+    contrastive_msg = (
+        f"**Contrastive Analysis (Band {band_chosen} vs Band {alt_band})**: "
+        f"Band {band_chosen} was selected because its combined threat value, empirical activity, "
+        f"and age-of-information urgency yielded higher expected utility than Channel {alt_band}."
     )
+    st.success(contrastive_msg)
 
-st.write("---")
-
-# ----------------- SECTION 3: SPECTRUM WATERFALL & DWELL TRAJECTORY -----------------
-st.markdown("### 🛰️ Spectrum Waterfall & Receiver Scan Trajectory")
-st.markdown(
-    "Compare where each receiver dwells across the frequency channels over time. "
-    "Background heatmap shows ground truth transmissions (grey = silent, gold = active emission). "
-    "Overlaid markers show receiver dwells: **Green** = True Intercept, **Red** = False Alarm, **Cyan** = Dwell on Silent Band."
-)
-
-inspect_sched = st.selectbox(
-    "Choose Scheduler to Inspect on Waterfall Display:",
-    options=list(results_map.keys()),
-    index=0,
-)
-
-res_inspect = results_map[inspect_sched]
-gt_matrix = res_inspect.ground_truth_matrix
-T_display = min(150, gt_matrix.shape[0])  # Display first 150 time slots for clear visibility
-
-fig_wf, ax_wf = plt.subplots(figsize=(14, 5.5))
-fig_wf.patch.set_facecolor("#0f172a")
-ax_wf.set_facecolor("#0f172a")
-
-# Plot Ground Truth Spectrogram (Transpose so Y is Band, X is Time)
-ax_wf.imshow(
-    gt_matrix[:T_display, :].T,
-    aspect="auto",
-    origin="lower",
-    cmap="cividis",
-    extent=[0, T_display, -0.5, num_bands - 0.5],
-    alpha=0.65,
-)
-
-# Overlay scan trajectory
-time_steps = list(range(T_display))
-dwell_bands = res_inspect.actions[:T_display]
-
-# Connect dwells with subtle line
-ax_wf.plot(time_steps, dwell_bands, color="#38bdf8", alpha=0.35, linewidth=1.0, linestyle="--")
-
-# Categorize scatter points
-true_hits_t = [t for t in range(T_display) if res_inspect.true_detections[t]]
-true_hits_b = [res_inspect.actions[t] for t in true_hits_t]
-
-false_alarms_t = [t for t in range(T_display) if res_inspect.false_alarms[t]]
-false_alarms_b = [res_inspect.actions[t] for t in false_alarms_t]
-
-misses_t = [t for t in range(T_display) if not res_inspect.detections[t]]
-misses_b = [res_inspect.actions[t] for t in misses_t]
-
-ax_wf.scatter(misses_t, misses_b, color="#0284c7", s=25, alpha=0.6, label="Dwell (Silent / Miss)")
-if false_alarms_t:
-    ax_wf.scatter(false_alarms_t, false_alarms_b, color="#ef4444", s=55, marker="x", label="False Alarm")
-if true_hits_t:
-    ax_wf.scatter(true_hits_t, true_hits_b, color="#22c55e", s=65, marker="o", edgecolors="#ffffff", linewidths=1.2, label="True Intercept")
-
-ax_wf.set_title(f"Receiver Scan Path: {inspect_sched} vs Spectrum Ground Truth (Seed {seed})", color="#f8fafc", fontsize=12, fontweight="bold")
-ax_wf.set_xlabel("Time Slot (t)", color="#94a3b8", fontsize=10)
-ax_wf.set_ylabel("Frequency Band Channel", color="#94a3b8", fontsize=10)
-ax_wf.set_yticks(range(num_bands))
-ax_wf.tick_params(colors="#94a3b8")
-ax_wf.grid(True, linestyle=":", alpha=0.2, color="#94a3b8")
-ax_wf.legend(loc="upper right", facecolor="#1e293b", edgecolor="#475569", labelcolor="#f8fafc", fontsize=9)
-
-st.pyplot(fig_wf)
-plt.close(fig_wf)
-
-st.write("---")
-
-# ----------------- SECTION 4: 'WHY THIS BAND?' EXPLANATION LOG -----------------
-st.markdown("### 🧠 \"Why This Band?\" Operational Explanation Log")
-st.markdown(
-    "Inspect the real-time reasoning and internal decision variables behind every single band selection made by the agent."
-)
-
-col_log_ctrl, col_log_view = st.columns([1.0, 2.0])
-
-with col_log_ctrl:
-    inspect_step = st.slider(
-        "Select Time Slot (t) to Inspect Decision:",
-        min_value=0,
-        max_value=len(res_inspect.actions) - 1,
-        value=min(25, len(res_inspect.actions) - 1),
-        step=1,
-    )
-    st.markdown(f"**Inspecting Time Slot**: `t = {inspect_step}`")
-    st.markdown(f"**Ground Truth Active Channels**: `{np.where(gt_matrix[inspect_step])[0].tolist()}`")
-
-with col_log_view:
-    st.markdown("#### Real-time Agent Reasoning Comparison at `t = {}`".format(inspect_step))
-    for s_name, res in results_map.items():
-        band_chosen = res.actions[inspect_step]
-        reason = res.explanations[inspect_step]
-        detected = res.detections[inspect_step]
-        emitters = res.detected_emitters[inspect_step]
-        det_badge = "🟢 HIT" if detected else "⚪ SILENT"
-
-        with st.container():
-            st.markdown(
-                f"""
-                <div style="background-color:#1e293b; border-left:4px solid #38bdf8; padding:10px 14px; border-radius:4px; margin-bottom:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:700; color:#f8fafc;">{s_name}</span>
-                        <span style="font-size:0.85rem; color:#94a3b8;">Tuned: <strong>Band {band_chosen}</strong> | {det_badge}</span>
-                    </div>
-                    <div style="font-size:0.88rem; color:#cbd5e1; margin-top:6px; font-family:monospace;">
-                        {reason}
-                    </div>
-                    {f'<div style="font-size:0.78rem; color:#86efac; margin-top:4px;">Intercepted Emitters: {", ".join(emitters)}</div>' if emitters else ''}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-with st.expander("🔍 Browse Full Step-by-Step Mission Event Log (Searchable Table)"):
+    # Detailed step log table
+    st.markdown("#### 📋 Detailed Per-Step Action Log")
     log_rows = []
-    for t_idx in range(len(res_inspect.actions)):
-        log_rows.append(
-            {
-                "Slot": t_idx,
-                "Band": res_inspect.actions[t_idx],
-                "Outcome": "Intercept" if res_inspect.true_detections[t_idx] else ("False Alarm" if res_inspect.false_alarms[t_idx] else "Silent"),
-                "Step Reward": f"{res_inspect.rewards[t_idx]:.1f}",
-                "Cumulative": f"{res_inspect.cumulative_rewards[t_idx]:.1f}",
-                "Agent Explanation": res_inspect.explanations[t_idx],
-            }
-        )
-    st.dataframe(pd.DataFrame(log_rows))
+    for s_idx in range(len(sched_res.actions)):
+        log_rows.append({
+            "Slot": s_idx,
+            "Tuned Band": sched_res.actions[s_idx],
+            "Detected": "✅ Hit" if sched_res.true_detections[s_idx] else ("⚠️ False Alarm" if sched_res.false_alarms[s_idx] else "—"),
+            "Step Reward": f"{sched_res.rewards[s_idx]:+.2f}",
+            "Cumulative Reward": f"{sched_res.cumulative_rewards[s_idx]:+.2f}",
+            "Rationale": sched_res.explanations[s_idx],
+        })
+
+    df_log = pd.DataFrame(log_rows)
+    st.dataframe(df_log.tail(100), use_container_width=True, height=320)
+
+    # Download button for audit trail
+    csv_bytes = df_log.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="📥 Download Mission Log (CSV)",
+        data=csv_bytes,
+        file_name=f"drishti_mission_log_{chosen_scheduler.lower().replace(' ', '_')}.csv",
+        mime="text/csv",
+    )

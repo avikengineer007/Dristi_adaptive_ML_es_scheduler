@@ -63,11 +63,11 @@
   - [x] Formal Model Card in `docs/model_card.md`
   - [x] Tests and `docs/phase_6.md`
 
-- [ ] **Phase 7: Tactical Dashboard**
-  - [ ] Streamlit mission control in `dashboard/app.py`
-  - [ ] Live waterfall heatmap, cumulative curves, and "Why this band?" log
-  - [ ] Interactive "scenario shock" mid-mission emitter alteration
-  - [ ] Tests and `docs/phase_7.md`
+- [x] **Phase 7: Tactical Dashboard**
+  - [x] Streamlit mission control in `dashboard/app.py`
+  - [x] Live waterfall heatmap, cumulative curves, and "Why this band?" log
+  - [x] Interactive "scenario shock" mid-mission emitter alteration
+  - [x] Tests and `docs/phase_7.md`
 
 - [ ] **Phase 8: Differentiators (Post-Core)**
   - [ ] 8A: Adversarial self-play evasion emitter (`drishti/adversary/`)
