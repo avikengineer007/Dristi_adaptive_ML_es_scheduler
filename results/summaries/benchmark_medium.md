@@ -1,0 +1,5 @@
+| Scheduler | Probability of Detection (Pd) | False Alarm Rate (FAR) | Interception Ratio (Count) | Interception Ratio (Time) | Avg Intercept Time (AIT) | Cumulative Reward |
+| --- | --- | --- | --- | --- | --- | --- |
+| Sequential Sweep | 0.999 +/- 0.002 | 0.020 +/- 0.003 | 0.046 +/- 0.004 | 0.040 +/- 0.001 | 1.181 +/- 0.116 | -194.367 +/- 12.794 |
+| Random Scan | 0.998 +/- 0.002 | 0.020 +/- 0.003 | 0.132 +/- 0.007 | 0.065 +/- 0.002 | 1.002 +/- 0.202 | 48.160 +/- 16.899 |
+| Priority Pre-Mission Sweep | 0.999 +/- 0.001 | 0.020 +/- 0.002 | 0.234 +/- 0.004 | 0.081 +/- 0.001 | 1.085 +/- 0.018 | 268.000 +/- 9.430 |

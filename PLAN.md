@@ -25,13 +25,13 @@
   - [x] Script `experiments/render_episode.py` saving spectrum-time heatmap to `results/`
   - [x] Tests and `docs/phase_1.md`
 
-- [ ] **Phase 2: Baselines and Metrics Harness**
-  - [ ] Abstract `Scheduler` interface (`reset`, `choose_action`, `update`, `explain`)
-  - [ ] Baselines in `drishti/baselines/` (`SequentialSweep`, `RandomScan`, `PriorityPreMissionSweep`)
-  - [ ] Formal metric harness in `drishti/metrics/` ($P_d$, $FAR$, count & time $IR$, censored $AIT$, $ITE$, Reward)
-  - [ ] Multi-seed evaluation runner `experiments/benchmark.py` over 30 identical seeds with 95% CIs
-  - [ ] Generate baseline results table across all 4 scenarios
-  - [ ] Tests and `docs/phase_2.md`
+- [x] **Phase 2: Baselines and Metrics Harness**
+  - [x] Abstract `Scheduler` interface (`reset`, `choose_action`, `update`, `explain`)
+  - [x] Baselines in `drishti/baselines/` (`SequentialSweep`, `RandomScan`, `PriorityPreMissionSweep`)
+  - [x] Formal metric harness in `drishti/metrics/` ($P_d$, $FAR$, count & time $IR$, censored $AIT$, $ITE$, Reward)
+  - [x] Multi-seed evaluation runner `experiments/benchmark.py` over 30 identical seeds with 95% CIs
+  - [x] Generate baseline results table across all 4 scenarios
+  - [x] Tests and `docs/phase_2.md`
 
 - [ ] **Phase 3: Non-Stationary Bandit Scheduler**
   - [ ] Implement `SlidingWindowUCB` and `DiscountedThompson` in `drishti/schedulers/bandit/`

@@ -41,3 +41,4 @@ minversion = "8.0"
 addopts = "-ra -q --import-mode=importlib"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+pythonpath = ["."]
